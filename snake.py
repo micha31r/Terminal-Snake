@@ -10,7 +10,7 @@ screen = curses.initscr()
 
 # Variables
 ###################################
-height, width = screen.getmaxyx()
+HEIGHT, WIDTH = screen.getmaxyx()
 
 ###################################
 
@@ -39,116 +39,129 @@ screen.timeout(100)
 # Program codes
 ###################################
 
-def score():
-    screen.addstr(0, 2, "SCORE: "+str(m_snake.length), curses.color_pair(1))
+class Game:
 
-class make_snake:
-    snake_pos = []
-    head_y, head_x = int(height/2), int(width/2)
-    direction = "right"
-    length = 0
+    def __init__(self):
+        self.snake = Snake()
+        self.food = Food()
+
+    def score(self):
+        screen.addstr(0, 2, "SCORE: "+str(m_snake.length), curses.color_pair(1))
+
+    def update(self):
+        # Update snake movement
+        self.snake.update()
+
+        # Spawn new food if snake ate it
+        eat = self.snake.eat(self.food.y, self.food.x)
+        if eat:
+            self.food = eat
+
+        # Collision with body and border
+        if self.snake.hit_body() or self.snake.hit_border():
+            global running
+            running = False
+
+    def render(self):
+        self.snake.render()
+        self.food.render()
+
+class Snake:
+
+    def __init__(self):
+        self.y = int(HEIGHT/2)
+        self.x = int(WIDTH/2)
+        self.direction = 0 # 0=up 1=down 2=right 3=left
+        self.tail = []
+        self.length = 0
     
-    def key(self):
+    def control(self):
         key_p = screen.getch()
         if key_p == ord('w'):
-            if self.direction != "down":
-                self.direction = "up"
+            if self.direction != 1:
+                self.direction = 0
         elif key_p == ord('a'):
-            if self.direction != "right":
-                self.direction = "left"
+            if self.direction != 2:
+                self.direction = 3
         elif key_p == ord('s'):
-            if self.direction != "up":
-                self.direction = "down"
+            if self.direction != 0:
+                self.direction = 1
         elif key_p == ord('d'):
-            if self.direction != "left":
-                self.direction = "right"
+            if self.direction != 3:
+                self.direction = 2
 
     def add_body(self):
-        self.snake_pos.append([self.head_y, self.head_x])
-    
-    def display_snake(self):
-        screen.addstr(self.head_y, self.head_x, "@", curses.color_pair(1))
-        for body in make_snake.snake_pos:
-            screen.addstr(body[0], body[1], "o", curses.color_pair(1))
+        self.tail.append([self.y, self.x])
+        self.length += 1
 
-    def move_snake(self):
-        if self.direction == "up":
-            self.head_y -= 1
-        elif self.direction == "left":
-            self.head_x -= 1
-        elif self.direction == "down":
-            self.head_y += 1
-        elif self.direction == "right":
-            self.head_x += 1
+    def shift(self):
+        for i in range(self.length-1):
+            self.tail[i] = self.tail[i+1]
+        self.add_body()
 
-    def del_body(self):
-        if len(self.snake_pos) > self.length:
-            del self.snake_pos[:1]
-            if len(self.snake_pos) > self.length:
-                m_snake.del_body()
+    def eat(self,foody,foodx):
+        if self.y == foody and self.x == foodx:
+            self.length += 1
+            self.add_body()
+            return Food() # Generate new food
 
-    def collide_with_food(self):
-        try:
-            if self.head_y == make_food.food_list[0][0] and self.head_x == make_food.food_list[0][1]:
-                make_food.food_list = []
-                self.length += 1
-        except:
-            pass
+    def hit_body(self):
+        if [self.y, self.x] in self.tail:
+            return False
 
-    def collide_with_body(self):
-        if [self.head_y, self.head_x] in self.snake_pos:
-            curses.endwin()
-            sys.exit()
+    def hit_border(self):
+        if (self.y > HEIGHT-1 or self.y < 1) or (self.x > WIDTH-1 or self.x < 1):
+            return False
 
-    def collide_with_border(self):
-        if self.head_y >= height-1 or self.head_y <= 1:
-            curses.endwin()
-            sys.exit()
-        if self.head_x >= width-1 or self.head_x <= 1:
-            curses.endwin()
-            sys.exit()
+    def update(self):
+        self.control()
 
+        # Move body
+        self.shift()
 
-class make_food:
-    food_list = []
-    def spawn(self):
-        self.food_list.append([random.randint(3,height-3), random.randint(3,width-3)])
+        # Move head
+        if self.direction == 0:
+            self.y -= 1
+        elif self.direction == 1:
+            self.y += 1
+        elif self.direction == 2:
+            self.x += 1
+        elif self.direction == 3:
+            self.x -= 1
 
-    def display_food(self):
-        try:
-            screen.addstr(self.food_list[0][0], self.food_list[0][1], "c", curses.color_pair(1))
-        except:
-            pass
+    def render(self):
+        color = curses.color_pair(1)
+        # Render head
+        screen.addstr(3,3, str(self.y)+" "+str(self.x), color)
+        # screen.addstr(self.y, self.x, "@", color)
+        # Render tail
+        # for body in self.tail:
+            # screen.addstr(body[0], body[1], "o", color)
 
-    def new_food(self):
-        if self.food_list == []:
-            m_food.spawn()
+class Food:
 
-###################################
-# Create snake and food
-m_snake = make_snake()
-m_food = make_food()
+    def __init__(self):
+        self.y = random.randint(0,HEIGHT-1)
+        self.x = random.randint(0,WIDTH-1)
 
-m_food.spawn()
+    def render(self):
+        screen.addstr(self.y, self.x, "c", curses.color_pair(1))
+
+game = Game()
 
 # Loop
-while True:
+running = True
+while running:
     try:
         screen.border(0)
-        m_food.display_food()
-        m_food.new_food()
-        m_snake.add_body()
-        m_snake.move_snake()
-        m_snake.display_snake()
-        m_snake.collide_with_food()
-        m_snake.collide_with_body()
-        m_snake.collide_with_border()
-        m_snake.del_body()
-        score()
-        m_snake.key()
+        game.update()
+        game.render()
         screen.refresh()
         screen.erase()
+        screen.addstr(3,3,"2")
     except KeyboardInterrupt:
-        #End Program
-        curses.endwin()
-        sys.exit()
+        break
+
+#End Program
+curses.endwin()
+sys.exit()
