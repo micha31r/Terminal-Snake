@@ -1,43 +1,31 @@
 # Snake game
 
-# Import libraries
-import curses
-import random
-import time
-import sys
+import curses, random, time, sys
 
-screen = curses.initscr()
+SCREEN = curses.initscr()
 
-# Variables
-###################################
-HEIGHT, WIDTH = screen.getmaxyx()
+# Returning special values
+SCREEN.keypad(True)
 
-###################################
+# Clear SCREEN
+SCREEN.clear()
 
-# SetUps
-###################################
+# Keypress timeout
+SCREEN.timeout(120)
+
+HEIGHT, WIDTH = SCREEN.getmaxyx()
+
 # No echo keys
 curses.noecho()
 
 # No pressing enter
 curses.cbreak()
 
-# Returning special values
-screen.keypad(True)
-
-#clear screen
-screen.clear()
-
 # Start color
 curses.start_color()
+
 # Grey
 curses.init_pair(1, 120, curses.COLOR_BLACK)
-
-screen.timeout(100)
-#################################
-
-# Program codes
-###################################
 
 class Game:
 
@@ -46,7 +34,7 @@ class Game:
         self.food = Food()
 
     def score(self):
-        screen.addstr(0, 2, "SCORE: "+str(m_snake.length), curses.color_pair(1))
+        SCREEN.addstr(0, 2, f"SCORE: {str(self.snake.length)}", curses.color_pair(1))
 
     def update(self):
         # Update snake movement
@@ -65,6 +53,7 @@ class Game:
     def render(self):
         self.snake.render()
         self.food.render()
+        self.score()
 
 class Snake:
 
@@ -76,7 +65,7 @@ class Snake:
         self.length = 0
     
     def control(self):
-        key_p = screen.getch()
+        key_p = SCREEN.getch()
         if key_p == ord('w'):
             if self.direction != 1:
                 self.direction = 0
@@ -92,26 +81,24 @@ class Snake:
 
     def add_body(self):
         self.tail.append([self.y, self.x])
-        self.length += 1
 
     def shift(self):
-        for i in range(self.length-1):
-            self.tail[i] = self.tail[i+1]
         self.add_body()
+        self.tail.pop(0)
 
     def eat(self,foody,foodx):
         if self.y == foody and self.x == foodx:
-            self.length += 1
             self.add_body()
+            self.length += 1
             return Food() # Generate new food
 
     def hit_body(self):
-        if [self.y, self.x] in self.tail:
-            return False
+        if [self.y, self.x] in self.tail[:-1]:
+            return True
 
     def hit_border(self):
-        if (self.y > HEIGHT-1 or self.y < 1) or (self.x > WIDTH-1 or self.x < 1):
-            return False
+        if (self.y > HEIGHT-2 or self.y < 2) or (self.x > WIDTH-2 or self.x < 2):
+            return True
 
     def update(self):
         self.control()
@@ -132,36 +119,33 @@ class Snake:
     def render(self):
         color = curses.color_pair(1)
         # Render head
-        screen.addstr(3,3, str(self.y)+" "+str(self.x), color)
-        # screen.addstr(self.y, self.x, "@", color)
+        SCREEN.addstr(self.y, self.x, "@", color)
         # Render tail
-        # for body in self.tail:
-            # screen.addstr(body[0], body[1], "o", color)
+        for body in self.tail:
+            SCREEN.addstr(body[0], body[1], "o", color)
 
 class Food:
 
     def __init__(self):
-        self.y = random.randint(0,HEIGHT-1)
-        self.x = random.randint(0,WIDTH-1)
+        self.y = random.randint(2,HEIGHT-2)
+        self.x = random.randint(2,WIDTH-2)
 
     def render(self):
-        screen.addstr(self.y, self.x, "c", curses.color_pair(1))
+        SCREEN.addstr(self.y, self.x, "c", curses.color_pair(1))
 
 game = Game()
 
 # Loop
 running = True
 while running:
-    try:
-        screen.border(0)
-        game.update()
-        game.render()
-        screen.refresh()
-        screen.erase()
-        screen.addstr(3,3,"2")
-    except KeyboardInterrupt:
-        break
+    game.update()
+    SCREEN.refresh()
+    SCREEN.erase()
+    SCREEN.border(0)
+    game.render()
 
-#End Program
+# End Program
 curses.endwin()
+
+print(f"Game Score: {game.snake.length}")
 sys.exit()
